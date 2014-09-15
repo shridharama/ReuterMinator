@@ -1,15 +1,19 @@
+import sgmllib
 import sys
 import os
 import os.path
 
-import sgmllib
-
+####
+##
+## Class that parses all the Rueters SGML files and returns a list with the following attributes:
+##
+##
+####
 class ReutersSGMLParser(sgmllib.SGMLParser):
+    DATA_SET_DIRECTORY = '/home/shridhar/Acads/CSE5423/Project/Datasets/'
 
-    def __init__(self, filePath, verbose=1):
+    def __init__(self, verbose=1):
         sgmllib.SGMLParser.__init__(self, verbose)
-        f = open(filePath, "r")
-        self.file_string = f.read()
 
         self.in_title = 0
         """Flag indicating whether or not we're parsing the title."""
@@ -26,7 +30,7 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
         self.title = ""
         """Title of the document"""
 
-        self.doc_id = 0
+        self.item_id = 0
         """Document ID"""
 
         self.dateline = ""
@@ -36,18 +40,26 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
         """Body of the document"""
 
         self.topics = []
-        self.docs = []
+        self.docs = {}
         self.places = []
 
-    def parse(self):
+    def parse_all_docs(self):
 
-        """Parse the given string 's', which is an SGML encoded file."""
+        """Parse the given string file_string, which is an SGML encoded file."""
 
-        self.docs = []
-        self.feed(self.file_string)
+        self.docs = {}
+        for file_name in os.listdir(ReutersSGMLParser.DATA_SET_DIRECTORY):
+            print 'Parsing ' + file_name
+            file_path = ReutersSGMLParser.DATA_SET_DIRECTORY + file_name
+            f = open(file_path, "r")
+            self.file_string = f.read()
+            self.feed(self.file_string)
+            f.close()
+            print 'Items parsed: ', len(self.docs.keys())
+
         self.close()
 
-    def get_parsed_docs(self):
+    def get_parsed_dataset(self):
         return self.docs
 
     #handle_data method is called in between start_<tag> and end_<tag>
@@ -71,12 +83,11 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
     ####
     def start_reuters(self, attributes):
         """Process Reuters tags, which bracket a document. Create a new
-        file for each document encountered.
-        """
+        file for each document encountered."""
 
         for name, value in attributes:
             if name == "newid":
-                self.doc_id = value
+                self.item_id = value
 
     def end_reuters(self):
         """Write out the contents to a file and reset all variables."""
@@ -88,7 +99,7 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
         # text, merge into 70 character lines using python's fill
         # utility
         """
-        filename = "text/" + str(self.doc_id) + ".txt"
+        filename = "text/" + str(self.item_id) + ".txt"
         doc_file = open(filename, "w")
         doc_file.write(self.title + "\n")
         doc_file.write(self.dateline + "\n")
@@ -99,14 +110,14 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
         """
 
         # lets cleanup the topics variable a bit by converting to a list
-        self.docs.append({'title' : self.title, 'dateline': self.dateline, 'body' : self.body, 'topics' : self.topics})
+        self.docs[self.item_id] = {'title' : self.title, 'dateline': self.dateline, 'body' : self.body, 'topics' : self.topics, 'places' : self.places}
 
         # Reset variables
         self.in_title = 0
         self.in_dateline = 0
         self.in_body = 0
         self.in_topic = 0
-        self.doc_id = 0
+        self.item_id = 0
         self.in_places = 0
 
         self.title = ""
@@ -180,15 +191,3 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
         """Indicate that the parser is no longer in the topics portion of the document."""
 
         self.in_topic = 0
-
-
-
-def main():
-    print 'hello'
-    p = ReutersSGMLParser('/home/shridhar/Acads/CSE5423/Project/Datasets/reut2-000.sgm')
-    p.parse()
-    parsed_docs = p.get_parsed_docs()
-    for doc in parsed_docs:
-        print doc['topics']
-
-if __name__ == "__main__": main()
