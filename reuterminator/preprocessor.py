@@ -2,6 +2,7 @@ from reuterssgmlparser import *
 import nltk
 import string
 import json
+from collections import OrderedDict
 from nltk import *
 from nltk import corpus
 from nltk.stem import PorterStemmer
@@ -15,6 +16,7 @@ class Preprocessor:
     def __init__(self, parser):
         self.parser = parser
         self.parsed_data = {}
+        self.word_dict = {}
         #self.data_set_directory = d
 
     def get_parsed_data(self):
@@ -36,7 +38,9 @@ class Preprocessor:
 
     def clean_data(self):
         for item,data in self.parsed_data.iteritems():
+            print "cleaning "+ item
             body = data['body']
+            body = body.replace("-", " ")
             #tokens = nltk.word_tokenize(body.translate(None, string.punctuation))
             tokenizer = RegexpTokenizer(r'[A-Za-z\-]{2,}')
             tokens = tokenizer.tokenize(body)
@@ -44,17 +48,40 @@ class Preprocessor:
             words_stemmed = self.stem_words(words_without_stopwords)
             #print better_words
             self.parsed_data[item]['body_clean'] = words_stemmed
+            self.parsed_data[item]['body'] = ''
+
+    #creates dictionary of words
+    def create_word_dict(self):
+        for item,data in self.parsed_data.iteritems():
+            print "Updating words from "+item
+            tokens = data['body_clean']
+            for word in tokens:
+                if word.lower() in self.word_dict.keys():
+                    self.word_dict[word.lower()] += 1
+                else:
+                    self.word_dict[word.lower()] = 1
+        print "sorting dict"
+        self.word_dict = OrderedDict(sorted(self.word_dict.items(), key=lambda t: t[1], reverse = True))
 
 
 
 
 def main():
     preprocessor = Preprocessor(ReutersSGMLParser())
-    parsed_data = preprocessor.get_parsed_data()
+    '''parsed_data = preprocessor.get_parsed_data()
     preprocessor.clean_data()
-    file = open("datadump.txt", "w")
-    file.write(json.dumps(preprocessor.parsed_data, indent=4))
+    preprocessor.create_word_dict()
+    file = open("worddumplist.json", "w")
+    file.write(json.dumps(preprocessor.word_dict.items(), indent=4))
     file.close()
+    file = open("worddumpdict.json", "w")
+    file.write(json.dumps(preprocessor.word_dict, indent=4))
+    file.close()
+    file = open("docdatadump.json", "w")
+    file.write(json.dumps(preprocessor.parsed_data, indent=4))
+    file.close()'''
+    preprocessor.create_feature_vector("docdatadump.json")
+
     #print preprocessor.parsed_data
 
 if __name__ == "__main__": main()
