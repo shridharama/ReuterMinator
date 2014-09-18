@@ -68,20 +68,18 @@ class Preprocessor:
 
 def main():
     preprocessor = Preprocessor(ReutersSGMLParser())
-    '''parsed_data = preprocessor.get_parsed_data()
+    parsed_data = preprocessor.get_parsed_data()
     preprocessor.clean_data()
     preprocessor.create_word_dict()
+    file = open("docdatadump.json", "w")
+    file.write(json.dumps(preprocessor.parsed_data, indent=4))
+    file.close()
     file = open("worddumplist.json", "w")
     file.write(json.dumps(preprocessor.word_dict.items(), indent=4))
     file.close()
     file = open("worddumpdict.json", "w")
     file.write(json.dumps(preprocessor.word_dict, indent=4))
     file.close()
-    file = open("docdatadump.json", "w")
-    file.write(json.dumps(preprocessor.parsed_data, indent=4))
-    file.close()'''
-    preprocessor.create_feature_vector("docdatadump.json")
 
-    #print preprocessor.parsed_data
 
 if __name__ == "__main__": main()
