@@ -10,9 +10,9 @@ import os.path
 ##
 ####
 class ReutersSGMLParser(sgmllib.SGMLParser):
-    #DATA_SET_DIRECTORY = '/home/shridhar/Acads/CSE5423/Project/Datasets/'
-    #DATA_SET_DIRECTORY = '/home/kau/DM1/ReuterMinator/Datasets/'
-    DATA_SET_DIRECTORY = '/home/kau/SmallDataset/'
+
+    #DATA_SET_DIRECTORY = '../SmallDataset/'
+    DATA_SET_DIRECTORY = '../Datasets/'
 
     def __init__(self, verbose=1):
         sgmllib.SGMLParser.__init__(self, verbose)
@@ -92,24 +92,7 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
                 self.item_id = value
 
     def end_reuters(self):
-        """Write out the contents to a file and reset all variables."""
-
-        from textwrap import fill
-        import re
-
-        # Print out the contents to a file. For the body of the
-        # text, merge into 70 character lines using python's fill
-        # utility
-        """
-        filename = "text/" + str(self.item_id) + ".txt"
-        doc_file = open(filename, "w")
-        doc_file.write(self.title + "\n")
-        doc_file.write(self.dateline + "\n")
-        # Strip out multiple spaces in the body
-        self.body = re.sub(r'\s+', r' ', self.body)
-        doc_file.write(fill(self.body) + "\n")
-        doc_file.close()
-        """
+        """Reset all variables."""
 
         # lets cleanup the topics variable a bit by converting to a list
         self.docs[self.item_id] = {'title' : self.title, 'dateline': self.dateline, 'body' : self.body, 'topics' : self.topics, 'places' : self.places}
