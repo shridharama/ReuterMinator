@@ -23,6 +23,7 @@ class Preprocessor:
     def __init__(self, parser):
         self.parser = parser
         self.parsed_data = {}
+        self.word_dict = {}
         #self.data_set_directory = d
 
     def get_parsed_data(self):
@@ -58,13 +59,30 @@ class Preprocessor:
             if i%1000 == 0:
                 print i, 'documents have been stemmed and cleansed of stop words!'
 
-    def write_to_file(self, filename):
-        """Converts to json and dumps the contents to a file"""
+    #creates dictionary of words
+    def create_word_dict(self):
+        i=0
+        for item,data in self.parsed_data.iteritems():
+            tokens = data['tokenized_body_cleaned']
+            for word in tokens:
+                if word.lower() in self.word_dict.keys():
+                    self.word_dict[word.lower()] += 1
+                else:
+                    self.word_dict[word.lower()] = 1
+            i+=1
+            if i%1000 == 0:
+                print i, ' documents have been checked for words!'
+        self.word_dict = OrderedDict(sorted(self.word_dict.items(), key=lambda t: t[1], reverse = True))
+
+
+    def write_to_file(self, data, filename):
+        #Converts to json and dumps the contents to a file
         with open(filename, 'w') as outfile:
             #Removing non-unicode characters from the dataset
             #self.parsed_data = unicode(self.parsed_data, errors='ignore')
-            json.dump(self.parsed_data, outfile, indent=4)
+            json.dump(data, outfile, indent=4)
         outfile.close()
+
 
 def main():
     preprocessor = Preprocessor(ReutersSGMLParser())
@@ -79,9 +97,12 @@ def main():
     preprocessor.clean_data()
     end = time.clock()
     print end - start, 'seconds to remove stop words and stem all bodies of documents'
-
-    preprocessor.write_to_file("cleaned.json")
-
+    start = time.clock()
+    preprocessor.create_word_dict()
+    end = time.clock()
+    print end - start, 'seconds to create word dictionary'
+    preprocessor.write_to_file(preprocessor.parsed_data, "cleaned.json")
+    preprocessor.write_to_file(preprocessor.word_dict, "worddict.json")
 
 
 if __name__ == "__main__": main()
