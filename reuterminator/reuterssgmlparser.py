@@ -10,7 +10,9 @@ import os.path
 ##
 ####
 class ReutersSGMLParser(sgmllib.SGMLParser):
-    DATA_SET_DIRECTORY = '/home/shridhar/Acads/CSE5423/Project/Datasets/'
+    #DATA_SET_DIRECTORY = '/home/shridhar/Acads/CSE5423/Project/Datasets/'
+    #DATA_SET_DIRECTORY = '/home/kau/DM1/ReuterMinator/Datasets/'
+    DATA_SET_DIRECTORY = '/home/kau/SmallDataset/'
 
     def __init__(self, verbose=1):
         sgmllib.SGMLParser.__init__(self, verbose)
