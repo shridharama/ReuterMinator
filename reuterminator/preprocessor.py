@@ -9,6 +9,14 @@ from nltk.tokenize import RegexpTokenizer
 import sys
 import os
 import os.path
+import json
+import time
+
+##
+#   Each element is of the form:
+#   'doc_id' = {'title': <title>, 'dateline':<dateline>, 'body': <body>, 'topics': <topics>, 'places': <places>, 'tokenized_body_cleaned': <tokenized_body_cleaned>}
+#
+##
 
 
 class Preprocessor:
@@ -23,38 +31,57 @@ class Preprocessor:
         self.parsed_data = self.parser.get_parsed_dataset()
         #return self.parsed_data
 
-    def remove_stop_words(self, tokens):
+    def get_words_after_stop_word_removal(self, tokens):
         JUNK_WORDS = ['<','>',':',"''",'#','cc','',',','s','reuter','note']
         good_words = [w for w in tokens if w.lower() not in nltk.corpus.stopwords.words('english')]
         better_words = [w for w in good_words if w.lower() not in JUNK_WORDS]
         return better_words
 
-    def stem_words(self, tokens):
+    def get_stemmed_words(self, tokens):
         stemmer = PorterStemmer()
         stemmed_words = [stemmer.stem(w) for w in tokens]
         return stemmed_words
 
     def clean_data(self):
-        for item,data in self.parsed_data.iteritems():
-            body = data['body']
+        i=0
+        for doc_id,doc_attributes in self.parsed_data.iteritems():
+            body = doc_attributes['body']
             #tokens = nltk.word_tokenize(body.translate(None, string.punctuation))
             tokenizer = RegexpTokenizer(r'[A-Za-z\-]{2,}')
-            tokens = tokenizer.tokenize(body)
-            words_without_stopwords = self.remove_stop_words(tokens)
-            words_stemmed = self.stem_words(words_without_stopwords)
-            #print better_words
-            self.parsed_data[item]['body_clean'] = words_stemmed
+            tokenized_body = tokenizer.tokenize(body)
+            words_without_stopwords = self.get_words_after_stop_word_removal(tokenized_body)
+            words_stemmed = self.get_stemmed_words(words_without_stopwords)
+            self.parsed_data[doc_id]['tokenized_body_cleaned'] = words_stemmed
+            #deleting body as we no longer need it as we have tokenized_cleaned_body
+            del doc_attributes['body']
+            i+=1
+            if i%1000 == 0:
+                print i, 'documents have been stemmed and cleansed of stop words!'
 
-
-
+    def write_to_file(self, filename):
+        """Converts to json and dumps the contents to a file"""
+        with open(filename, 'w') as outfile:
+            #Removing non-unicode characters from the dataset
+            #self.parsed_data = unicode(self.parsed_data, errors='ignore')
+            json.dump(self.parsed_data, outfile, indent=4)
+        outfile.close()
 
 def main():
     preprocessor = Preprocessor(ReutersSGMLParser())
+
+    start = time.clock()
     parsed_data = preprocessor.get_parsed_data()
+    end = time.clock()
+    print end - start, 'seconds to parse all documents'
+
+    start = time.clock()
+
     preprocessor.clean_data()
-    file = open("datadump.txt", "w")
-    file.write(json.dumps(preprocessor.parsed_data, indent=4))
-    file.close()
-    #print preprocessor.parsed_data
+    end = time.clock()
+    print end - start, 'seconds to remove stop words and stem all bodies of documents'
+
+    preprocessor.write_to_file("cleaned.json")
+
+
 
 if __name__ == "__main__": main()
