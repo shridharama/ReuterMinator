@@ -126,7 +126,7 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
 
     ####
     # Handle PLACES tags
-    ####
+   	 ####
     def start_places(self, attributes):
         """Indicate that the parser is in the title portion of the document."""
 
