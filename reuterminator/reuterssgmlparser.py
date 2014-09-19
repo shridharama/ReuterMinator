@@ -11,8 +11,8 @@ import os.path
 ####
 class ReutersSGMLParser(sgmllib.SGMLParser):
 
-    #DATA_SET_DIRECTORY = '../SmallDataset/'
-    DATA_SET_DIRECTORY = '../Datasets/'
+    DATA_SET_DIRECTORY = '../SmallDataset/'
+    #DATA_SET_DIRECTORY = '../Datasets/'
 
     def __init__(self, verbose=1):
         sgmllib.SGMLParser.__init__(self, verbose)
@@ -66,18 +66,18 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
 
     #handle_data method is called in between start_<tag> and end_<tag>
     def handle_data(self, data):
-        """Print out data in TEXT portions of the document."""
+        """handles different types of data and populates it to member variables after lowering case."""
 
         if self.in_body:
-            self.body += data
+            self.body += data.lower()
         elif self.in_title:
-            self.title += data
+            self.title += data.lower()
         elif self.in_dateline:
-            self.dateline += data
+            self.dateline += data.lower()
         elif self.in_topic:
-            self.topics.append(data)
+            self.topics.append(data.lower())
         elif self.in_places:
-            self.places.append(data)
+            self.places.append(data.lower())
 
 
     ####
