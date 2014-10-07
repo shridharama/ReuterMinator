@@ -16,6 +16,7 @@ import json
 import time
 import matplotlib
 import math
+import itertools
 
 ##
 #   Each parsed_data key-value is of the form:
@@ -51,17 +52,26 @@ class Preprocessor:
         self.tfidf_dict = {}
         #dict of feature vector with tf feature
         self.tf_dict = {}
-
+        self.topic_list = []
         self.bigram_dict = {}
+        self.global_bigram_dict = {}
         #self.data_set_directory = d
 
     def get_parsed_data(self):
         print 'Retrieving parsed data from datasets'
         self.parser.parse_all_docs()
         self.parsed_data = self.parser.get_parsed_dataset()
+        self.topic_list = self.parser.get_all_topics()
+        self.topic_wise_dict = {topic:{} for topic in self.topic_list}
+        print self.topic_wise_dict
         #return self.parsed_data
 
     ''' Method that removes stop words and stems tokens '''
+
+    def clear_topic_dict(self):
+        for topic,docs in self.topic_wise_dict.iteritems():
+            self.topic_wise_dict[topic].clear()
+        print self.topic_wise_dict
     def clean_data(self):
         i=0
         for doc_id,doc_attributes in self.parsed_data.iteritems():
@@ -73,6 +83,7 @@ class Preprocessor:
             words_without_stopwords = PreprocessorHelper.get_words_after_stop_word_removal(tokenized_body)
             words_stemmed = PreprocessorHelper.get_stemmed_words(words_without_stopwords)
             self.tokenized_body_cleaned_dict[doc_id] = words_stemmed
+
             #deleting body as we no longer need it as we have tokenized_cleaned_body
             del doc_attributes['body']
             i+=1
@@ -95,14 +106,14 @@ class Preprocessor:
         bigram_measures = nltk.collocations.BigramAssocMeasures()
         finder = BigramCollocationFinder.from_words(self.tokenized_body_cleaned_dict[doc_id])
         #using PMI to calculate bigram weights
-        bigram_scores = finder.score_ngrams(bigram_measures.pmi)
+        bigram_scores = finder.score_ngrams(bigram_measures.likelihood_ratio)
         ordered_bigrams = sorted(bigram_scores, key = lambda t: t[1], reverse = True)[0:20]
         bigram_dict = {}
+
         for bigram,pmi in ordered_bigrams:
-            bigram_dict[bigram[0] + " " + bigram[1]] = pmi
+            bigram_dict[bigram[0] + " " + bigram[1]] = True
+
         return bigram_dict
-        #self.write_to_file(bigram_dict, "Bigrams/bigrams"+doc_id+".json")
-        #return bigram_dict
 
     def populate_bigram_feature_vector(self):
         for doc_id, tokens in self.tokenized_body_cleaned_dict.iteritems():
@@ -115,6 +126,10 @@ class Preprocessor:
 
     def calculate_term_and_document_frequencies(self):
         #Hashset of documents already counted for that word
+        #cleaned_word_list =
+        #dataset_freq_dist = FreqDist(itertools.chain(*(self.tokenized_body_cleaned_dict.values())))
+
+
         self.documents_containing_token = {}
         for doc_id,tokenized_body_cleaned_list in self.tokenized_body_cleaned_dict.iteritems():
             frequency_dist = FreqDist(tokenized_body_cleaned_list)
@@ -156,8 +171,12 @@ class Preprocessor:
     #TODO: Change this to accept a list of generic class labels
     def populate_dictionary_with_class_labels(self, feature_dict):
         for doc_id, feature in feature_dict.iteritems():
-            feature_dict[doc_id]['topics'] = self.parsed_data[doc_id]['topics']
-            feature_dict[doc_id]['places'] = self.parsed_data[doc_id]['places']
+            for topic in self.parsed_data[doc_id]['topics']:
+                self.topic_wise_dict[topic][doc_id] = feature_dict[doc_id]
+            #feature_dict[doc_id]['topics'] = self.parsed_data[doc_id]['topics']
+            #feature_dict[doc_id]['places'] = self.parsed_data[doc_id]['places']
+        #for topic in self.topic_list:
+
         return feature_dict
 
     def calculate_tfidf(self):
@@ -199,8 +218,8 @@ def main():
     end = time.clock()
     print end - start, 'seconds to populate tfidf feature vector'
 
-    PreprocessorHelper.write_to_file(preprocessor.tfidf_dict,"tfidf.json")
-
+    PreprocessorHelper.write_to_file(preprocessor.topic_wise_dict,"tfidf.json")
+    preprocessor.clear_topic_dict()
 
     start = time.clock()
     preprocessor.populate_term_frequencies_feature_vector_dictionary()
@@ -208,7 +227,8 @@ def main():
     print end - start, 'seconds to populate tf feature vector'
 
 
-    PreprocessorHelper.write_to_file(preprocessor.tf_dict,"term_frequencies.json")
+    PreprocessorHelper.write_to_file(preprocessor.topic_wise_dict,"term_frequencies.json")
+    preprocessor.clear_topic_dict()
 
     start = time.clock()
     preprocessor.populate_bigram_feature_vector()
@@ -216,6 +236,7 @@ def main():
     print end - start, 'seconds to populate bigram feature vector'
 
 
-    PreprocessorHelper.write_to_file(preprocessor.bigram_dict, "bigrams.json")
+    PreprocessorHelper.write_to_file(preprocessor.topic_wise_dict, "bigrams_pmi.json")
+    preprocessor.clear_topic_dict()
 
 if __name__ == "__main__": main()

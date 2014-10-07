@@ -44,7 +44,7 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
         self.topics = []
         self.docs = {}
         self.places = []
-
+        self.all_topics = []
     def parse_all_docs(self):
 
         """Parse the given string file_string, which is an SGML encoded file."""
@@ -64,7 +64,11 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
     def get_parsed_dataset(self):
         return self.docs
 
+    def get_all_topics(self):
+        return self.all_topics
+
     #handle_data method is called in between start_<tag> and end_<tag>
+
     def handle_data(self, data):
         """handles different types of data and populates it to member variables after lowering case."""
 
@@ -76,6 +80,8 @@ class ReutersSGMLParser(sgmllib.SGMLParser):
             self.dateline += data.lower()
         elif self.in_topic:
             self.topics.append(data.lower())
+            if data.lower() not in self.all_topics:
+                self.all_topics.append(data.lower())
         elif self.in_places:
             self.places.append(data.lower())
 
