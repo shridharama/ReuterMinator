@@ -12,7 +12,7 @@ import json
 import time
 
 
-JUNK_WORDS = ['<','>',':',"''",'#','cc','',',','s','reuter','note']
+JUNK_WORDS = ['<','>',':',"''",'#','cc','',',','s','reuter','note','said','mln','dlr','pct']
 
 
 ''' Class that contains auxiliary (static) helper methods that are used by Preprocessor '''
@@ -24,7 +24,7 @@ class PreprocessorHelper:
         with open(filename, 'w') as outfile:
             #Removing non-unicode characters from the dataset
             #self.parsed_data = unicode(self.parsed_data, errors='ignore')
-            json.dump(data, outfile, indent=4)
+            json.dump(data, outfile)
         outfile.close()
 
     @staticmethod
@@ -38,3 +38,4 @@ class PreprocessorHelper:
         stemmer = PorterStemmer()
         stemmed_words = [stemmer.stem(w) for w in tokens]
         return stemmed_words
+
