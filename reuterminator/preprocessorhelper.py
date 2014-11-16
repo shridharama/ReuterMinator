@@ -19,12 +19,12 @@ JUNK_WORDS = ['<','>',':',"''",'#','cc','',',','s','reuter','note','said','mln',
 class PreprocessorHelper:
 
     @staticmethod
-    def write_to_file(data, filename):
+    def write_to_file(data, filename, indent_val = 4):
         #Converts to json and dumps the contents to a file
         with open(filename, 'w') as outfile:
             #Removing non-unicode characters from the dataset
             #self.parsed_data = unicode(self.parsed_data, errors='ignore')
-            json.dump(data, outfile, indent=4)
+            json.dump(data, outfile, indent=indent_val)
         outfile.close()
 
     @staticmethod

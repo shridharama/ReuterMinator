@@ -12,7 +12,6 @@ from nltk.collocations import *
 import sys
 import os
 import os.path
-import json
 import time
 import matplotlib
 import math
@@ -319,6 +318,6 @@ def main():
 
 
     PreprocessorHelper.write_to_file(preprocessor.bigram_dict, "bigrams_pmi.json")
-    preprocessor.clear_topic_dict()
+    ##preprocessor.clear_topic_dict()
 
 if __name__ == "__main__": main()
