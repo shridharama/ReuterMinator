@@ -15,7 +15,7 @@ import time
 JUNK_WORDS = ['<','>',':',"''",'#','cc','',',','s','reuter','note','said','mln','dlr','pct']
 
 
-''' Class that contains auxiliary (static) helper methods that are used by Preprocessor '''
+''' Class that contains auxiliary (static) helper methods that are used by other classes '''
 class PreprocessorHelper:
 
     @staticmethod
@@ -24,7 +24,7 @@ class PreprocessorHelper:
         with open(filename, 'w') as outfile:
             #Removing non-unicode characters from the dataset
             #self.parsed_data = unicode(self.parsed_data, errors='ignore')
-            json.dump(data, outfile)
+            json.dump(data, outfile, indent=4)
         outfile.close()
 
     @staticmethod
@@ -39,3 +39,13 @@ class PreprocessorHelper:
         stemmed_words = [stemmer.stem(w) for w in tokens]
         return stemmed_words
 
+    @staticmethod
+    def convert_to_utf(input):
+        if isinstance(input, dict):
+            return {PreprocessorHelper.convert_to_utf(key): PreprocessorHelper.convert_to_utf(value) for key, value in input.iteritems()}
+        elif isinstance(input, list):
+            return [PreprocessorHelper.convert_to_utf(element) for element in input]
+        elif isinstance(input, unicode):
+            return input.encode('utf-8')
+        else:
+            return input

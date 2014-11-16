@@ -7,7 +7,10 @@ import time
 from sklearn.feature_extraction import DictVectorizer
 from nltk.classify import DecisionTreeClassifier
 import numpy as np
+from preprocessorhelper import *
+
 class Classifier:
+    TRAINING_TESTING_SPLIT_FRACTION = 0.8
     def __init__(self, feature_type):
         self.feature_type = feature_type
         self.feature_vectors = {}
@@ -15,36 +18,20 @@ class Classifier:
         self.feature_vectors_tuples_for_test = []
 
 
-    def create_word_dict(self):
-        self.feature_vectors = self.convert_to_utf(json.load(open(self.feature_type+'.json')))
-        word_dict = {}
-        i = 0
-        for topic,topic_vector in self.feature_vectors.iteritems():
-            #print topic
-            for doc_id,feature_vector in topic_vector.iteritems():
-                i = i+1
-                for word,freq in feature_vector['term_frequencies'].iteritems():
-                    if word not in word_dict:
-                        word_dict[word] = 1 #freq
-                    else:
-                        word_dict[word] += 1
-
-        print i
-        s=open('word_dict.json','w')
-        json.dump(word_dict, s)
-        s.close()
 
     def prepare_data_for_classify(self):
-        self.feature_vectors = self.convert_to_utf(json.load(open(self.feature_type+'.json')))
-        print "preparing data"
+        self.feature_vectors = PreprocessorHelper.convert_to_utf(json.load(open(self.feature_type+'.json')))
         self.preprare_train_and_test_set()
 
 
     def classify_naive_bayes(self, classifier_type):
         #classifier = SklearnClassifier(classifier_type)
         clf = classifier_type
-        X = np.array([feature_vector[0] for feature_vector in self.feature_vectors_tuples_for_train])
-        Y = np.array([feature_vector[1] for feature_vector in self.feature_vectors_tuples_for_train])
+
+        #Feature_vector_tuples consist of (feature_type, topic) tuples
+        #X contains a list of feature_types for all tuples, and Y a list of topics for all tuples
+        X = np.array([feature_vector_tuple[0] for feature_vector_tuple in self.feature_vectors_tuples_for_train])
+        Y = np.array([feature_vector_tuple[1] for feature_vector_tuple in self.feature_vectors_tuples_for_train])
         print "training"
         vectorizer = DictVectorizer(dtype=float, sparse=True)
         X = vectorizer.fit_transform(X)
@@ -84,8 +71,10 @@ class Classifier:
 
     #separates train and test data
     def preprare_train_and_test_set(self):
+        print 'preparing training and test sets from the datasets. Ratio of Training to Test = ', Classifier.TRAINING_TESTING_SPLIT_FRACTION, ':' 1-Classifier.TRAINING_TESTING_SPLIT_FRACTION
         for topic,topic_vector in self.feature_vectors.iteritems():
-            train_data_limit = int(0.8*len(topic_vector))
+            #Within each topic, choose a fraction of the key-values as training set
+            train_data_limit = int(Classifier.TRAINING_TESTING_SPLIT_FRACTION*len(topic_vector))
             i = 0
             for doc_id,feature_vector in topic_vector.iteritems():
                 classify_tuple = (feature_vector[self.feature_type], topic)
@@ -94,21 +83,29 @@ class Classifier:
                     self.feature_vectors_tuples_for_train.append(classify_tuple)
                 else:
                     self.feature_vectors_tuples_for_test.append(classify_tuple)
-        print len(self.feature_vectors_tuples_for_train)
-        print len(self.feature_vectors_tuples_for_test)
+        print 'Number of training set tuples: ', len(self.feature_vectors_tuples_for_train)
+        print 'Number of test set tuples: ', len(self.feature_vectors_tuples_for_test)
 
 
-    def convert_to_utf(self, input):
-        if isinstance(input, dict):
-            return {self.convert_to_utf(key): self.convert_to_utf(value) for key, value in input.iteritems()}
-        elif isinstance(input, list):
-            return [self.convert_to_utf(element) for element in input]
-        elif isinstance(input, unicode):
-            return input.encode('utf-8')
-        else:
-            return input
+    #Function not used anywhere
+    def create_word_dict(self):
+        self.feature_vectors = PreprocessorHelper.convert_to_utf(json.load(open(self.feature_type+'.json')))
+        word_dict = {}
+        i = 0
+        for topic,topic_vector in self.feature_vectors.iteritems():
+            #print topic
+            for doc_id,feature_vector in topic_vector.iteritems():
+                i = i+1
+                for word,freq in feature_vector['term_frequencies'].iteritems():
+                    if word not in word_dict:
+                        word_dict[word] = 1 #freq
+                    else:
+                        word_dict[word] += 1
 
-
+        print i
+        s=open('word_dict.json','w')
+        json.dump(word_dict, s)
+        s.close()
 
 
 def main():

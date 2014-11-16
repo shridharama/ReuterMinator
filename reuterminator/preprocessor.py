@@ -17,10 +17,11 @@ import time
 import matplotlib
 import math
 import itertools
-
-##
-#   Each parsed_data key-value is of the form:
+from collections import Counter
+from collections import OrderedDict
 '''
+## Each parsed_data key-value is of the form:
+
 {
     'doc_id' = #Refers to ID of a News Item
     {
@@ -33,11 +34,31 @@ import itertools
         'vector': <vector>
     }
 }
+##The below was used for classification. Not used any more.
+{
+    'topic':
+    {
+        'doc_id' = #Refers to ID of a News Item
+        {
+            'title': <title>,
+            'dateline':<dateline>,
+            'body': <body>, #body gets deleted after cleaning
+            'topics': <topics>,
+            'places': <places>,
+            'tokenized_body_cleaned': <tokenized_body_cleaned>
+            'vector': <vector>
+        }
+    }
+}
 '''
 ##
-
+def getKey(item):
+    return item[0]
+TRANSACTIONAL_DATA = 'Transactional_Data'
+DATA_MATRIX = 'Data_Matrix'
 
 class Preprocessor:
+
     def __init__(self, parser):
         self.parser = parser
         self.parsed_data = {}
@@ -62,9 +83,9 @@ class Preprocessor:
         print 'Retrieving parsed data from datasets'
         self.parser.parse_all_docs()
         self.parsed_data = self.parser.get_parsed_dataset()
-        self.topic_list = self.parser.get_all_topics()
-        self.topic_wise_dict = {topic:{} for topic in self.topic_list}
-        print self.topic_wise_dict
+        ##self.topic_list = self.parser.get_all_topics()
+        ##self.topic_wise_dict = {topic:{} for topic in self.topic_list}
+        ##print self.topic_wise_dict
         #return self.parsed_data
 
     ''' Method that removes stop words and stems tokens '''
@@ -93,11 +114,13 @@ class Preprocessor:
 
 
 
-    def populate_tfidf_feature_vector_dictionary(self):
-        self.calculate_term_frequencies()
-        #self.calculate_term_and_document_frequencies()
-        #self.calculate_tfidf()
-        #self.populate_dictionary_with_class_labels(self.tfidf_dict)
+    def populate_tfidf_feature_vector_dictionary(self, representation_type):
+        if(representation_type == DATA_MATRIX):
+            self.calculate_term_frequencies()
+        elif(representation_type == TRANSACTIONAL_DATA) :
+            self.calculate_term_and_document_frequencies()
+            self.calculate_tfidf()
+            self.populate_dictionary_with_class_labels(self.tfidf_dict)
 
     def populate_term_frequencies_feature_vector_dictionary(self):
         #self.remove_low_frequency_words()
@@ -128,7 +151,7 @@ class Preprocessor:
 
     #wrote separate function to calculate term frequency data matrix
     def calculate_term_frequencies(self):
-        vector_template = self.convert_to_utf(json.load(open('word_dict.json')))
+        vector_template = PreprocessorHelper.convert_to_utf(json.load(open('word_dict.json')))
         for doc_id,tokenized_body_cleaned_list in self.tokenized_body_cleaned_dict.iteritems():
             tf_data_matrix = {}
             tf_data_matrix = dict.fromkeys(vector_template,0)
@@ -136,10 +159,11 @@ class Preprocessor:
             self.tf_dict[doc_id] = {'term_frequencies':{}}
 
             for token in frequency_dist:
-                self.tf_dict[doc_id]['term_frequencies'][token] = frequency_dist[token]
+                #self.tf_dict[doc_id]['term_frequencies'][token] = frequency_dist[token]
                 if token in tf_data_matrix:
                     tf_data_matrix[token] = frequency_dist[token]
-                self.tf_dict[doc_id]['term_frequencies'] = dict.copy(tf_data_matrix)
+            print 'asdasd' + OrderedDict(sorted(tf_data_matrix.items(),key=lambda t: t[0]))
+            self.tf_dict[doc_id]['term_frequencies'] = OrderedDict(sorted(tf_data_matrix.items(),key=lambda t: t[0]))
 
 
 
@@ -173,7 +197,7 @@ class Preprocessor:
 
 
     def remove_low_frequency_words(self):
-        print 'Removing words with per-news-item low frequency'
+        print 'Removing words with per-news-item low frequency (1)'
         start = time.clock()
 
         for doc_id in self.tf_dict:
@@ -190,9 +214,9 @@ class Preprocessor:
     #TODO: Change this to accept a list of generic class labels
     def populate_dictionary_with_class_labels(self, feature_dict):
         for doc_id, feature in feature_dict.iteritems():
-            for topic in self.parsed_data[doc_id]['topics']:
-                self.topic_wise_dict[topic][doc_id] = feature_dict[doc_id]
-            #feature_dict[doc_id]['topics'] = self.parsed_data[doc_id]['topics']
+            ##for topic in self.parsed_data[doc_id]['topics']:
+                ##self.topic_wise_dict[topic][doc_id] = feature_dict[doc_id]
+            feature_dict[doc_id]['topics'] = self.parsed_data[doc_id]['topics']
             feature_dict[doc_id]['places'] = self.parsed_data[doc_id]['places']
         #for topic in self.topic_list:
 
@@ -213,15 +237,42 @@ class Preprocessor:
             # self.word_dict = OrderedDict(sorted(self.tfidf_dict[doc_id]['tfidf'].items(), key=lambda t: t[1], reverse = True))
 
 
-    def convert_to_utf(self, input):
-        if isinstance(input, dict):
-            return {self.convert_to_utf(key): self.convert_to_utf(value) for key, value in input.iteritems()}
-        elif isinstance(input, list):
-            return [self.convert_to_utf(element) for element in input]
-        elif isinstance(input, unicode):
-            return input.encode('utf-8')
-        else:
-            return input
+
+    def G(self):
+        total_word_list = []
+        tokenized_body_cleaned_dict = PreprocessorHelper.convert_to_utf(json.load(open('cleaned.json')))
+        i = 0
+        for doc_id,tokenized_body_cleaned_list in tokenized_body_cleaned_dict.iteritems():
+            total_word_list = total_word_list + tokenized_body_cleaned_list
+            i += 1
+            if i%1000 is 0:
+                print i
+        print "generating word_dict"
+        frequency_dist = Counter(total_word_list)
+
+        #most_common_words_in_word_dict = tuple(frequency_dist.most_common(3000))
+        #aplhabetically_sorted_most_common_words_in_word_dict = sorted(most_common_words_in_word_dict,key=getKey)
+
+
+        most_common_words_in_word_dict = {}
+        for tuple in frequency_dist.most_common(3000):
+            most_common_words_in_word_dict[tuple[0]] = tuple[1]
+        aplhabetically_sorted_most_common_words_in_word_dict =OrderedDict(sorted(most_common_words_in_word_dict.items(),key=lambda t: t[0]))
+
+        s=open('word_dict.json','w')
+        json.dump(aplhabetically_sorted_most_common_words_in_word_dict, s, indent=4)
+        s.close()
+
+        #print frequency_dist
+#        s1=open('high_frequency_word_list.json','w')
+#       s2=open('high_frequency_word_list_frequency.json','w')
+
+#       json.dump([t[0] for t in aplhabetically_sorted_most_common_words_in_word_dict], s1, indent=4)
+   #     json.dump([t[1] for t in aplhabetically_sorted_most_common_words_in_word_dict], s2, indent=4)
+
+    #    s1.close()
+     #   s2.close()
+
 
 
 
@@ -238,15 +289,18 @@ def main():
     preprocessor.clean_data()
     end = time.clock()
     print end - start, 'seconds to remove stop words and stem all bodies of documents'
-    PreprocessorHelper.write_to_file(preprocessor.tokenized_body_cleaned_dict, "cleaned_small.json")
+    PreprocessorHelper.write_to_file(preprocessor.tokenized_body_cleaned_dict, "cleaned.json")
+
+    ##preprocessor.create_word_dict_from_cleaned_data()
+    ##print 'word_dict has been created'
 
     start = time.clock()
-    preprocessor.populate_tfidf_feature_vector_dictionary()
+    preprocessor.populate_tfidf_feature_vector_dictionary(TRANSACTIONAL_DATA)
     end = time.clock()
     print end - start, 'seconds to populate tfidf feature vector'
 
-    #PreprocessorHelper.write_to_file(preprocessor.topic_wise_dict,"tfidf.json")
-    #preprocessor.clear_topic_dict()
+    PreprocessorHelper.write_to_file(preprocessor.tfidf_dict,"tfidf.json")
+    ##preprocessor.clear_topic_dict()
 
     start = time.clock()
     preprocessor.populate_term_frequencies_feature_vector_dictionary()
@@ -254,16 +308,17 @@ def main():
     print end - start, 'seconds to populate tf feature vector'
 
 
-    PreprocessorHelper.write_to_file(preprocessor.topic_wise_dict,"term_frequencies_small.json")
-    preprocessor.clear_topic_dict()
-'''
+    PreprocessorHelper.write_to_file(preprocessor.tf_dict,"term_frequencies.json")
+    ##preprocessor.clear_topic_dict()
+
+
     start = time.clock()
     preprocessor.populate_bigram_feature_vector()
     end = time.clock()
     print end - start, 'seconds to populate bigram feature vector'
 
 
-    PreprocessorHelper.write_to_file(preprocessor.topic_wise_dict, "bigrams_pmi.json")
+    PreprocessorHelper.write_to_file(preprocessor.bigram_dict, "bigrams_pmi.json")
     preprocessor.clear_topic_dict()
-    '''
+
 if __name__ == "__main__": main()
