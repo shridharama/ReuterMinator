@@ -10,6 +10,9 @@ import math
 import itertools
 import copy
 import random
+
+VALUE_OF_K = 16
+
 class Similarity:
     def __init__(self, feature_type):
 
@@ -17,6 +20,7 @@ class Similarity:
         self.tryy = True
         self.transformed_feature_vector = {}
         self.jaccard_similarity_matrix = {}
+        self.minhash_similarity_matrix = {}
         self.hashed_matrix = {}
         self.word_set = set()
 
@@ -42,43 +46,16 @@ class Similarity:
         self.document_count = len(self.transformed_feature_vector)
 
     #initializes sim matrix with matrix(i,i) = 1.0
-    def init_jaccard_similarity_matrix(self):
+    def init_similarity_matrix(self,matrix):
         #self.document_count = len(self.transformed_feature_vector)
         for i in range(self.document_count):
             s = [None]*self.document_count
             s[i] = 1.0
-            self.jaccard_similarity_matrix[i] = s
+            matrix[i] = s
         #PreprocessorHelper.write_to_file(self.jaccard_similarity_matrix,"init_similarity.json",None)
 
-    #initialize hash matrix. m is no of docs and n is no of permutations
-    def init_hash_vector(self, m, n):
-        for i in range(m):
-            s = ['']*n
-            self.hashed_matrix[i] = s
-
-    #populate the hash matrix
-    '''hash matrix structure
-        self.hashed_matrix[i][j] will give hash word for the str(i+1)th doc_id for the jth permutation
-    '''
-    def populate_document_hashes(self, k):
-        self.init_hash_vector(len(self.transformed_feature_vector),k)
-        j = 0
-        word_list = list(self.word_set)
-        while j < k:
-            permutation = copy.copy(word_list)
-            random.shuffle(permutation)
-            for doc_id in self.transformed_feature_vector:
-                for word in permutation:
-                    if word in self.transformed_feature_vector[doc_id]:
-                        self.hashed_matrix[int(doc_id)-1][j] = word
-                        break
-            j += 1
-
-        PreprocessorHelper.write_to_file(self.hashed_matrix,"hashes.json")
-
-
     def populate_jaccard_similarity_matrix(self):
-        self.init_jaccard_similarity_matrix()
+        self.init_similarity_matrix(self.jaccard_similarity_matrix)
         for i in range(self.document_count):
             for j in range(i+1,self.document_count):
                 #print i,j
@@ -93,6 +70,47 @@ class Similarity:
             return 0.0
         setC = setA.intersection(setB)
         return float(len(setC)) / (len(setA) + len(setB) - len(setC))
+
+    #initialize hash matrix. m is no of docs and n is no of permutations
+    def init_hash_vector(self, m, n):
+        for i in range(m):
+            s = ['']*n
+            self.hashed_matrix[i] = s
+
+    #populate the hash matrix
+    '''hash matrix structure
+        self.hashed_matrix[i][j] will give hash word for the str(i+1)th doc_id for the jth permutation
+    '''
+    def populate_document_hashes(self):
+        self.init_hash_vector(len(self.transformed_feature_vector),VALUE_OF_K)
+        j = 0
+        word_list = list(self.word_set)
+        while j < VALUE_OF_K:
+            permutation = copy.copy(word_list)
+            random.shuffle(permutation)
+            for doc_id in self.transformed_feature_vector:
+                for word in permutation:
+                    if word in self.transformed_feature_vector[doc_id]:
+                        self.hashed_matrix[int(doc_id)-1][j] = word
+                        break
+            j += 1
+
+        PreprocessorHelper.write_to_file(self.hashed_matrix,"hashes.json")
+
+    def populate_minhash_similarity_matrix(self):
+        self.init_similarity_matrix(self.minhash_similarity_matrix)
+        for i in range(self.document_count):
+            for j in range(i+1,self.document_count):
+                common_word_count_between_i_and_j = 0
+                for k in range(VALUE_OF_K):
+                    if(self.hashed_matrix[i][k] == self.hashed_matrix[j][k]):
+                        common_word_count_between_i_and_j+=1
+                similarity_between_i_and_j = float(common_word_count_between_i_and_j/float(VALUE_OF_K))
+                self.minhash_similarity_matrix[i][j]=similarity_between_i_and_j
+                self.minhash_similarity_matrix[j][i]=similarity_between_i_and_j
+
+        PreprocessorHelper.write_to_file(self.minhash_similarity_matrix,"minhash_similarity.json")
+
 
 
 def main():
@@ -109,9 +127,14 @@ def main():
     print end - start, 'seconds to populate baseline jaccard similarity matrix'
 
     start = time.clock()
-    sim_tf.populate_document_hashes(16)
+    sim_tf.populate_document_hashes()
     end = time.clock()
     print end - start, 'seconds to populate hashing matrix'
+
+    start = time.clock()
+    sim_tf.populate_minhash_similarity_matrix()
+    end = time.clock()
+    print end - start, 'seconds to populate minhash similarity matrix'
 
 
     #sim_bigram = Similarity("bigrams_pmi")
