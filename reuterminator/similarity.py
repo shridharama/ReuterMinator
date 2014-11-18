@@ -10,6 +10,7 @@ import math
 import itertools
 import copy
 import random
+import math
 
 VALUE_OF_K = 16
 
@@ -44,6 +45,7 @@ class Similarity:
             #printing sample transformed_feature_vector
         #print self.transformed_feature_vector["1"]
         self.document_count = len(self.transformed_feature_vector)
+        print 'total number of documents being compared - ', self.document_count
 
     #initializes sim matrix with matrix(i,i) = 1.0
     def init_similarity_matrix(self,matrix):
@@ -58,7 +60,7 @@ class Similarity:
         self.init_similarity_matrix(self.jaccard_similarity_matrix)
         for i in range(self.document_count):
             for j in range(i+1,self.document_count):
-                #print i,j
+                #print i,j, self.transformed_feature_vector["1002"]
                 jaccard_sim = self.calculate_jaccard_similarity(self.transformed_feature_vector[str(i+1)],self.transformed_feature_vector[str(j+1)])
                 self.jaccard_similarity_matrix[i][j] = jaccard_sim
                 self.jaccard_similarity_matrix[j][i] = jaccard_sim
@@ -111,6 +113,14 @@ class Similarity:
 
         PreprocessorHelper.write_to_file(self.minhash_similarity_matrix,"minhash_similarity.json")
 
+    def get_rms_error_between_similarity_matrices(self):
+        N = self.document_count
+        num_of_comparisons = (N*(N-1))/2
+        sum_of_square_of_errors = 0
+        for i in range(N):
+            for j in range(i+1,N):
+                sum_of_square_of_errors += (self.minhash_similarity_matrix[i][j]-self.jaccard_similarity_matrix[i][j])**2
+        return math.sqrt(sum_of_square_of_errors/num_of_comparisons)
 
 
 def main():
@@ -136,6 +146,7 @@ def main():
     end = time.clock()
     print end - start, 'seconds to populate minhash similarity matrix'
 
+    print 'Root mean square error == ', sim_tf.get_rms_error_between_similarity_matrices()
 
     #sim_bigram = Similarity("bigrams_pmi")
     #sim_bigram.retrieve_and_transform_transactional_feature_vector()
