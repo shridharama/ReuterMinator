@@ -12,7 +12,8 @@ import copy
 import random
 import math
 
-VALUE_OF_K = 16
+K_VALUES = [16,32,64,128]
+FEATURES = ["term_frequencies","bigrams_frequencies"]
 
 class Similarity:
     def __init__(self, feature_type):
@@ -64,7 +65,7 @@ class Similarity:
                 jaccard_sim = self.calculate_jaccard_similarity(self.transformed_feature_vector[str(i+1)],self.transformed_feature_vector[str(j+1)])
                 self.jaccard_similarity_matrix[i][j] = jaccard_sim
                 self.jaccard_similarity_matrix[j][i] = jaccard_sim
-        PreprocessorHelper.write_to_file(self.jaccard_similarity_matrix,"jaccard_similarity.json",None)
+        PreprocessorHelper.write_to_file(self.jaccard_similarity_matrix,self.feature_type+"_jaccard_similarity.json",None)
 
     def calculate_jaccard_similarity(self, setA, setB):
         #There are some documents whose term frequencies contain empty set
@@ -83,11 +84,12 @@ class Similarity:
     '''hash matrix structure
         self.hashed_matrix[i][j] will give hash word for the str(i+1)th doc_id for the jth permutation
     '''
-    def populate_document_hashes(self):
-        self.init_hash_vector(len(self.transformed_feature_vector),VALUE_OF_K)
+    def populate_document_hashes(self, k):
+        self.k = k
+        self.init_hash_vector(len(self.transformed_feature_vector), self.k)
         j = 0
         word_list = list(self.word_set)
-        while j < VALUE_OF_K:
+        while j < self.k:
             permutation = copy.copy(word_list)
             random.shuffle(permutation)
             for doc_id in self.transformed_feature_vector:
@@ -97,21 +99,21 @@ class Similarity:
                         break
             j += 1
 
-        PreprocessorHelper.write_to_file(self.hashed_matrix,"hashes.json")
+        PreprocessorHelper.write_to_file(self.hashed_matrix,self.feature_type+"_hashes.json")
 
     def populate_minhash_similarity_matrix(self):
         self.init_similarity_matrix(self.minhash_similarity_matrix)
         for i in range(self.document_count):
             for j in range(i+1,self.document_count):
                 common_word_count_between_i_and_j = 0
-                for k in range(VALUE_OF_K):
+                for k in range(self.k):
                     if(self.hashed_matrix[i][k] == self.hashed_matrix[j][k]):
                         common_word_count_between_i_and_j+=1
-                similarity_between_i_and_j = float(common_word_count_between_i_and_j/float(VALUE_OF_K))
+                similarity_between_i_and_j = float(common_word_count_between_i_and_j/float(self.k))
                 self.minhash_similarity_matrix[i][j]=similarity_between_i_and_j
                 self.minhash_similarity_matrix[j][i]=similarity_between_i_and_j
 
-        PreprocessorHelper.write_to_file(self.minhash_similarity_matrix,"minhash_similarity.json")
+        PreprocessorHelper.write_to_file(self.minhash_similarity_matrix,self.feature_type+"_minhash_similarity.json")
 
     def get_rms_error_between_similarity_matrices(self):
         N = self.document_count
@@ -123,32 +125,38 @@ class Similarity:
         return math.sqrt(sum_of_square_of_errors/num_of_comparisons)
 
 
-def main():
-    sim_tf = Similarity("term_frequencies")
-
+def calculate_baseline_and_hashes(feature_type):
+    sim = Similarity(feature_type)
+    print "CALCULATIONS FOR "+feature_type
+    print "\n\n"
     start = time.clock()
-    sim_tf.retrieve_and_transform_transactional_feature_vector()
+    sim.retrieve_and_transform_transactional_feature_vector()
     end = time.clock()
+
     print end - start, 'seconds to transform feature vectors into format easier to calculate similarities'
 
     start = time.clock()
-    sim_tf.populate_jaccard_similarity_matrix()
+    sim.populate_jaccard_similarity_matrix()
     end = time.clock()
     print end - start, 'seconds to populate baseline jaccard similarity matrix'
 
-    start = time.clock()
-    sim_tf.populate_document_hashes()
-    end = time.clock()
-    print end - start, 'seconds to populate hashing matrix'
+    for k in K_VALUES:
+        print "For K value of "+str(k)
+        start = time.clock()
+        sim.populate_document_hashes(k)
+        end = time.clock()
+        print end - start, 'seconds to populate hashing matrix'
 
-    start = time.clock()
-    sim_tf.populate_minhash_similarity_matrix()
-    end = time.clock()
-    print end - start, 'seconds to populate minhash similarity matrix'
+        start = time.clock()
+        sim.populate_minhash_similarity_matrix()
+        end = time.clock()
+        print end - start, 'seconds to populate minhash similarity matrix'
 
-    print 'Root mean square error == ', sim_tf.get_rms_error_between_similarity_matrices()
+        print 'Root mean square error == ', sim.get_rms_error_between_similarity_matrices()
+        print "\n"
 
-    #sim_bigram = Similarity("bigrams_pmi")
-    #sim_bigram.retrieve_and_transform_transactional_feature_vector()
+def main():
+    for feature in FEATURES:
+        calculate_baseline_and_hashes(feature)
 
 if __name__ == "__main__": main()

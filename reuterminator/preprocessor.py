@@ -130,20 +130,26 @@ class Preprocessor:
         bigram_measures = nltk.collocations.BigramAssocMeasures()
         finder = BigramCollocationFinder.from_words(self.tokenized_body_cleaned_dict[doc_id])
         #using PMI to calculate bigram weights
-        bigram_scores = finder.score_ngrams(bigram_measures.likelihood_ratio)
-        ordered_bigrams = sorted(bigram_scores, key = lambda t: t[1], reverse = True)[0:20]
+        bigram_scores = finder.score_ngrams(bigram_measures.raw_freq)
+        #ordered_bigrams = finder.nbest(bigram_scores, 50)
+
+        ordered_bigrams = sorted(bigram_scores, key = lambda t: t[1], reverse = True)[0:50]
         bigram_dict = {}
 
-        for bigram,pmi in ordered_bigrams:
-            bigram_dict[bigram[0] + " " + bigram[1]] = True
-
+        for bigram,freq in ordered_bigrams:
+            bg_str = bigram[0] + " " + bigram[1]
+            bigram_dict[bg_str]  = True
+            if bg_str in self.global_bigram_dict:
+                self.global_bigram_dict[bg_str] += 1
+            else:
+                self.global_bigram_dict[bg_str] = 1
         return bigram_dict
 
     def populate_bigram_feature_vector(self):
         for doc_id, tokens in self.tokenized_body_cleaned_dict.iteritems():
             self.bigram_dict[doc_id] = {}
-            self.bigram_dict[doc_id]['bigrams_pmi'] = {}
-            self.bigram_dict[doc_id]['bigrams_pmi'] = self.get_best_bigrams_from_doc(doc_id)
+            self.bigram_dict[doc_id]['bigrams_frequencies'] = {}
+            self.bigram_dict[doc_id]['bigrams_frequencies'] = self.get_best_bigrams_from_doc(doc_id)
         self.populate_dictionary_with_class_labels(self.bigram_dict)
 
 
@@ -317,7 +323,7 @@ def main():
     print end - start, 'seconds to populate bigram feature vector'
 
 
-    PreprocessorHelper.write_to_file(preprocessor.bigram_dict, "bigrams_pmi.json")
+    PreprocessorHelper.write_to_file(preprocessor.bigram_dict, "bigrams_frequencies.json")
     ##preprocessor.clear_topic_dict()
 
 if __name__ == "__main__": main()
