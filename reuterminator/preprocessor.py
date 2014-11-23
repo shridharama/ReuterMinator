@@ -3,6 +3,7 @@ from preprocessorhelper import *
 #import nltk
 import string
 import json
+import re
 from nltk import *
 from nltk import corpus
 from nltk.stem import PorterStemmer
@@ -130,7 +131,7 @@ class Preprocessor:
         bigram_measures = nltk.collocations.BigramAssocMeasures()
         finder = BigramCollocationFinder.from_words(self.tokenized_body_cleaned_dict[doc_id])
         #using PMI to calculate bigram weights
-        bigram_scores = finder.score_ngrams(bigram_measures.raw_freq)
+        bigram_scores = finder.score_ngrams(bigram_measures.pmi)#raw_freq)
         #ordered_bigrams = finder.nbest(bigram_scores, 50)
 
         ordered_bigrams = sorted(bigram_scores, key = lambda t: t[1], reverse = True)[0:50]
@@ -278,7 +279,18 @@ class Preprocessor:
     #    s1.close()
      #   s2.close()
 
-
+    def generate_k_shingles(self, k):
+        self.shingled_docs = {}
+        stripper = lambda x: ''.join([i for i in x if i not in string.punctuation])
+        for doc_id,doc_attributes in self.parsed_data.iteritems():
+            self.shingled_docs[doc_id] = {'shingles_frequencies':{}}
+            body = doc_attributes['body']
+            body = body.replace(' ','')
+            body = body.replace('\n','')
+            body = "".join([x if ord(x) < 128 else '' for x in body])
+            body = stripper(body)
+            shingles = set([body[i:i+k] for i in range(len(body)-k)])
+            self.shingled_docs[doc_id]["shingles_frequencies_"+str(k)] = {sh:True for sh in shingles}
 
 
 def main():
@@ -289,12 +301,18 @@ def main():
     end = time.clock()
     print end - start, 'seconds to parse all documents'
 
+    k=3
+    start = time.clock()
+    preprocessor.generate_k_shingles(k)
+    end = time.clock()
+    print end - start, 'seconds to  Shingles feature vector'
+    PreprocessorHelper.write_to_file(preprocessor.shingled_docs,"shingles_frequencies_"+str(k)+".json",None)
 
     start = time.clock()
     preprocessor.clean_data()
     end = time.clock()
     print end - start, 'seconds to remove stop words and stem all bodies of documents'
-    PreprocessorHelper.write_to_file(preprocessor.tokenized_body_cleaned_dict, "cleaned.json")
+    PreprocessorHelper.write_to_file(preprocessor.tokenized_body_cleaned_dict, "cleaned.json",None)
 
     ##preprocessor.create_word_dict_from_cleaned_data()
     ##print 'word_dict has been created'
@@ -304,7 +322,7 @@ def main():
     end = time.clock()
     print end - start, 'seconds to populate tfidf feature vector'
 
-    PreprocessorHelper.write_to_file(preprocessor.tfidf_dict,"tfidf.json")
+    PreprocessorHelper.write_to_file(preprocessor.tfidf_dict,"tfidf.json",None)
     ##preprocessor.clear_topic_dict()
 
     start = time.clock()
@@ -313,7 +331,7 @@ def main():
     print end - start, 'seconds to populate tf feature vector'
 
 
-    PreprocessorHelper.write_to_file(preprocessor.tf_dict,"term_frequencies.json")
+    PreprocessorHelper.write_to_file(preprocessor.tf_dict,"term_frequencies.json",None)
     ##preprocessor.clear_topic_dict()
 
 
@@ -323,7 +341,7 @@ def main():
     print end - start, 'seconds to populate bigram feature vector'
 
 
-    PreprocessorHelper.write_to_file(preprocessor.bigram_dict, "bigrams_frequencies.json")
+    PreprocessorHelper.write_to_file(preprocessor.bigram_dict, "bigrams_frequencies.json",None)
     ##preprocessor.clear_topic_dict()
 
 if __name__ == "__main__": main()

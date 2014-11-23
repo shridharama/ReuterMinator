@@ -11,8 +11,8 @@ import os.path
 ####
 class ReutersSGMLParser(sgmllib.SGMLParser):
 
-    #DATA_SET_DIRECTORY = '../SmallDataset/'
-    DATA_SET_DIRECTORY = '../Datasets/'
+    DATA_SET_DIRECTORY = '../SmallDataset/'
+    #DATA_SET_DIRECTORY = '../Datasets/'
 
     def __init__(self, verbose=1):
         sgmllib.SGMLParser.__init__(self, verbose)

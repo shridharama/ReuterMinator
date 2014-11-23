@@ -13,18 +13,29 @@ import random
 import math
 
 K_VALUES = [16,32,64,128]
-FEATURES = ["term_frequencies","bigrams_frequencies"]
+#FEATURES = ["bigrams_frequencies","term_frequencies","shingles_frequencies_5"]
+FEATURES = ["shingles_frequencies_3"]
+EFFICIENCY = {}
+EFFICACY = {}
+sum_dimensionality_bigrams = 0
+average_dimensionality_bigrams = 0
 
 class Similarity:
     def __init__(self, feature_type):
 
         self.feature_type = feature_type
-        self.tryy = True
         self.transformed_feature_vector = {}
         self.jaccard_similarity_matrix = {}
         self.minhash_similarity_matrix = {}
         self.hashed_matrix = {}
         self.word_set = set()
+
+
+    def reset(self):
+        self.minhash_similarity_matrix = {}
+        self.hashed_matrix = {}
+        sum_dimensionality_bigrams = 0
+        average_dimensionality_bigrams = 0
 
     #Gets feature vector from json file and transforms it into the type {doc_id: [Set of terms/n-grams]}
     def retrieve_and_transform_transactional_feature_vector(self):
@@ -38,15 +49,17 @@ class Similarity:
         }
         '''
         self.loaded_feature_vector = PreprocessorHelper.convert_to_utf(json.load(open(self.feature_type+'.json')))
-
+        sum_dimensionality_bigrams = 0
         #transforms into dictionary with format {doc_id: [Set of terms/n-grams]}
         for doc_id,value in self.loaded_feature_vector.iteritems():
             self.transformed_feature_vector[doc_id] = set(value[self.feature_type].keys())
+            sum_dimensionality_bigrams += len(self.transformed_feature_vector[doc_id])
             self.word_set = self.word_set.union(value[self.feature_type].keys())
             #printing sample transformed_feature_vector
         #print self.transformed_feature_vector["1"]
         self.document_count = len(self.transformed_feature_vector)
         print 'total number of documents being compared - ', self.document_count
+        print 'average_DIMENSIONALITY = ', sum_dimensionality_bigrams/self.document_count
 
     #initializes sim matrix with matrix(i,i) = 1.0
     def init_similarity_matrix(self,matrix):
@@ -65,7 +78,7 @@ class Similarity:
                 jaccard_sim = self.calculate_jaccard_similarity(self.transformed_feature_vector[str(i+1)],self.transformed_feature_vector[str(j+1)])
                 self.jaccard_similarity_matrix[i][j] = jaccard_sim
                 self.jaccard_similarity_matrix[j][i] = jaccard_sim
-        PreprocessorHelper.write_to_file(self.jaccard_similarity_matrix,self.feature_type+"_jaccard_similarity.json",None)
+        #PreprocessorHelper.write_to_file(self.jaccard_similarity_matrix,self.feature_type+"_jaccard_similarity.json",None)
 
     def calculate_jaccard_similarity(self, setA, setB):
         #There are some documents whose term frequencies contain empty set
@@ -99,7 +112,7 @@ class Similarity:
                         break
             j += 1
 
-        PreprocessorHelper.write_to_file(self.hashed_matrix,self.feature_type+"_hashes.json")
+        #PreprocessorHelper.write_to_file(self.hashed_matrix,self.feature_type+"_hashes.json",None)
 
     def populate_minhash_similarity_matrix(self):
         self.init_similarity_matrix(self.minhash_similarity_matrix)
@@ -113,7 +126,7 @@ class Similarity:
                 self.minhash_similarity_matrix[i][j]=similarity_between_i_and_j
                 self.minhash_similarity_matrix[j][i]=similarity_between_i_and_j
 
-        PreprocessorHelper.write_to_file(self.minhash_similarity_matrix,self.feature_type+"_minhash_similarity.json")
+        #PreprocessorHelper.write_to_file(self.minhash_similarity_matrix,self.feature_type+"_minhash_similarity.json",None)
 
     def get_rms_error_between_similarity_matrices(self):
         N = self.document_count
@@ -127,20 +140,23 @@ class Similarity:
 
 def calculate_baseline_and_hashes(feature_type):
     sim = Similarity(feature_type)
-    print "CALCULATIONS FOR "+feature_type
+    EFFICIENCY[feature_type] = {}
+    EFFICACY[feature_type] = {}
     print "\n\n"
+    print "CALCULATIONS FOR "+feature_type
     start = time.clock()
     sim.retrieve_and_transform_transactional_feature_vector()
     end = time.clock()
 
     print end - start, 'seconds to transform feature vectors into format easier to calculate similarities'
-
     start = time.clock()
     sim.populate_jaccard_similarity_matrix()
     end = time.clock()
     print end - start, 'seconds to populate baseline jaccard similarity matrix'
+    EFFICIENCY[feature_type]["jaccard"] = end - start
 
     for k in K_VALUES:
+        EFFICACY[feature_type][str(k)+"_minhash"] = {}
         print "For K value of "+str(k)
         start = time.clock()
         sim.populate_document_hashes(k)
@@ -151,12 +167,16 @@ def calculate_baseline_and_hashes(feature_type):
         sim.populate_minhash_similarity_matrix()
         end = time.clock()
         print end - start, 'seconds to populate minhash similarity matrix'
-
-        print 'Root mean square error == ', sim.get_rms_error_between_similarity_matrices()
+        EFFICIENCY[feature_type][str(k)+"_minhash"] = end - start
+        rmsq = sim.get_rms_error_between_similarity_matrices()
+        EFFICACY[feature_type][str(k)+"_minhash"]["rmsq"] = rmsq
+        print 'Root mean square error == ', rmsq
         print "\n"
+        sim.reset()
 
 def main():
     for feature in FEATURES:
         calculate_baseline_and_hashes(feature)
-
+        PreprocessorHelper.write_to_file(EFFICACY,"efficacy.json")
+        PreprocessorHelper.write_to_file(EFFICIENCY,"efficiency.json")
 if __name__ == "__main__": main()
